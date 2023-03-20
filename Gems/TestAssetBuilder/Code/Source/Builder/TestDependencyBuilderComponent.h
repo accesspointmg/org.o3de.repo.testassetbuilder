@@ -10,43 +10,40 @@
 
 #include <AzCore/Component/Component.h>
 #include <AssetBuilderSDK/AssetBuilderBusses.h>
-#include <AssetBuilderSDK/AssetBuilderSDK.h>
-#include <AzCore/std/smart_ptr/unique_ptr.h>
-#include <AzFramework/Asset/AssetCatalog.h>
+#include <AzCore/Asset/AssetCommon.h>
+#include <AzCore/RTTI/TypeInfoSimple.h>
+#include <AzCore/RTTI/RTTIMacros.h>
+
+namespace AZ
+{
+    class ReflectContext;
+}
 
 namespace TestAssetBuilder
 {
-    struct TestDependentAsset
-        : public AZ::Data::AssetData
-    {
-        AZ_CLASS_ALLOCATOR(TestDependentAsset, AZ::SystemAllocator);
-        AZ_RTTI(TestDependentAsset, "{B91BCEFE-1725-47E8-A762-C09F09425904}", AZ::Data::AssetData);
-
-        TestDependentAsset() = default;
-
-    };
-
-    class TestDependentAssetCatalog
-        : public AZ::Data::AssetCatalog
+    class TestAsset : public AZ::Data::AssetData
     {
     public:
-        AZ_CLASS_ALLOCATOR(TestDependentAssetCatalog, AZ::SystemAllocator);
+        AZ_RTTI(TestAsset, "{3BDE90FA-B163-4FB9-BC67-22AC2ABD8C28}", AZ::Data::AssetData);
+        AZ_CLASS_ALLOCATOR(TestAsset, AZ::SystemAllocator);
 
-        TestDependentAssetCatalog() = default;
+        static void Reflect(AZ::ReflectContext* context);
 
-        AZ::Data::AssetStreamInfo GetStreamInfoForLoad(const AZ::Data::AssetId& assetId, const AZ::Data::AssetType& type) override;
+        TestAsset() = default;
+        virtual ~TestAsset() = default;
+
+        AZStd::vector<AZ::Data::Asset<TestAsset>> m_referencedAssets;
     };
 
-    //! TestAssetBuilderComponent handles the lifecycle of the builder.
-    class TestAssetBuilderComponent
+    //! This builder is intended for automated tests which need an asset that can reference other assets.
+    //! It will take .auto_test_input files containing a single path to a source file and output .auto_test_asset files with an asset
+    //! reference to the assumed product of the referenced asset.  References should be to other .auto_test_input files.
+    class TestDependencyBuilderComponent
         : public AZ::Component,
-          public AssetBuilderSDK::AssetBuilderCommandBus::Handler
+          public AssetBuilderSDK::AssetBuilderCommandBus::MultiHandler
     {
     public:
-        AZ_COMPONENT(TestAssetBuilderComponent, "{55C3848D-A489-4428-9BA9-4A40AC7B9952}");
-
-        TestAssetBuilderComponent();
-        ~TestAssetBuilderComponent() override;
+        AZ_COMPONENT(TestDependencyBuilderComponent, "{E6DEE36F-8F75-41CB-9FEC-7E3231A97C1F}");
 
         void Init() override;
         void Activate() override;
@@ -70,6 +67,5 @@ namespace TestAssetBuilder
     private:
 
         bool m_isShuttingDown = false;
-        AZStd::unique_ptr<TestDependentAssetCatalog> m_dependentCatalog;
     };
 } // namespace TestAssetBuilder
